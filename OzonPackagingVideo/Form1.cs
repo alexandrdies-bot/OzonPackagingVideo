@@ -25,6 +25,7 @@ namespace OzonPackagingVideo
         private Label lblStatus;
         private Label lblTimer;
         private System.Windows.Forms.Timer timer;
+        private Panel rightPanel;
 
         public Form1()
         {
@@ -35,8 +36,13 @@ namespace OzonPackagingVideo
         private void SetupForm()
         {
             this.Text = "ТЕСТ: Видеофиксация упаковки";
-            this.Size = new Size(800, 600);
+
+            // Окно сразу разворачиваем во весь экран
+            this.WindowState = FormWindowState.Maximized;
             this.StartPosition = FormStartPosition.CenterScreen;
+
+            // Запрещаем изменять размер мышкой (по желанию)
+            this.FormBorderStyle = FormBorderStyle.Sizable; // можно FixedSingle, если хочешь жёстко фиксированный размер
 
             // Создаем папку для записей
             string recordingsPath = Path.Combine(Application.StartupPath, "TestRecordings");
@@ -49,65 +55,78 @@ namespace OzonPackagingVideo
 
         private void InitializeComponents()
         {
-            // ComboBox для выбора камеры
+            // -----------------------
+            // ПРАВАЯ ПАНЕЛЬ ДЛЯ КНОПОК И ИНФО
+            // -----------------------
+            rightPanel = new Panel();
+            rightPanel.Dock = DockStyle.Right;     // панель прижимается к правому краю
+            rightPanel.Width = 300;                // ширина панели (можно поменять позже)
+            rightPanel.BackColor = Color.LightGray;
+            this.Controls.Add(rightPanel);
+
+            // ComboBox для выбора камеры (внутри правой панели)
             cmbCameras = new ComboBox();
             cmbCameras.Location = new Point(10, 10);
-            cmbCameras.Size = new Size(300, 21);
-            this.Controls.Add(cmbCameras);
+            cmbCameras.Size = new Size(rightPanel.Width - 20, 21);
+            rightPanel.Controls.Add(cmbCameras);
 
             // Кнопка подключения камеры
             btnConnect = new Button();
-            btnConnect.Location = new Point(320, 10);
-            btnConnect.Size = new Size(100, 23);
+            btnConnect.Location = new Point(10, 40);
+            btnConnect.Size = new Size(rightPanel.Width - 20, 30);
             btnConnect.Text = "Подключить камеру";
             btnConnect.Click += BtnConnect_Click;
-            this.Controls.Add(btnConnect);
+            rightPanel.Controls.Add(btnConnect);
 
-            // Окно для просмотра видео с камеры
-            videoPreview = new PictureBox();
-            videoPreview.Location = new Point(10, 40);
-            videoPreview.Size = new Size(640, 480);
-            videoPreview.BorderStyle = BorderStyle.FixedSingle;
-            videoPreview.BackColor = Color.Black;
-            this.Controls.Add(videoPreview);
-
-            // Кнопка "Сканировать заказ" (имитация сканера)
+            // Кнопка "Сканировать заказ"
             btnScanOrder = new Button();
-            btnScanOrder.Location = new Point(10, 530);
-            btnScanOrder.Size = new Size(150, 30);
+            btnScanOrder.Location = new Point(10, 90);
+            btnScanOrder.Size = new Size(rightPanel.Width - 20, 40);
             btnScanOrder.Text = "СКАНИРОВАТЬ ЗАКАЗ";
             btnScanOrder.BackColor = Color.LightGreen;
             btnScanOrder.Enabled = false;
             btnScanOrder.Click += BtnScanOrder_Click;
-            this.Controls.Add(btnScanOrder);
+            rightPanel.Controls.Add(btnScanOrder);
 
-            // Кнопка "Сканировать этикетку" (имитация сканера)
+            // Кнопка "Сканировать этикетку"
             btnScanLabel = new Button();
-            btnScanLabel.Location = new Point(170, 530);
-            btnScanLabel.Size = new Size(150, 30);
+            btnScanLabel.Location = new Point(10, 140);
+            btnScanLabel.Size = new Size(rightPanel.Width - 20, 40);
             btnScanLabel.Text = "СКАНИРОВАТЬ ЭТИКЕТКУ";
             btnScanLabel.BackColor = Color.LightCoral;
             btnScanLabel.Enabled = false;
             btnScanLabel.Click += BtnScanLabel_Click;
-            this.Controls.Add(btnScanLabel);
+            rightPanel.Controls.Add(btnScanLabel);
 
             // Надпись статуса
             lblStatus = new Label();
-            lblStatus.Location = new Point(330, 535);
-            lblStatus.Size = new Size(300, 20);
+            lblStatus.Location = new Point(10, 200);
+            lblStatus.Size = new Size(rightPanel.Width - 20, 40);
             lblStatus.Text = "Статус: Отключено";
             lblStatus.ForeColor = Color.Red;
-            this.Controls.Add(lblStatus);
+            lblStatus.AutoSize = false;
+            lblStatus.TextAlign = ContentAlignment.MiddleLeft;
+            rightPanel.Controls.Add(lblStatus);
 
             // Таймер записи
             lblTimer = new Label();
-            lblTimer.Location = new Point(660, 15);
-            lblTimer.Size = new Size(100, 20);
+            lblTimer.Location = new Point(10, 250);
+            lblTimer.Size = new Size(rightPanel.Width - 20, 30);
             lblTimer.Text = "00:00:00";
-            lblTimer.Font = new Font("Arial", 10, FontStyle.Bold);
+            lblTimer.Font = new Font("Arial", 14, FontStyle.Bold);
             lblTimer.ForeColor = Color.Red;
             lblTimer.Visible = false;
-            this.Controls.Add(lblTimer);
+            rightPanel.Controls.Add(lblTimer);
+
+            // -----------------------
+            // ОБЛАСТЬ ВИДЕО СЛЕВА
+            // -----------------------
+            videoPreview = new PictureBox();
+            videoPreview.Dock = DockStyle.Fill;                // занимает всё оставшееся пространство
+            videoPreview.BorderStyle = BorderStyle.FixedSingle;
+            videoPreview.BackColor = Color.Black;
+            videoPreview.SizeMode = PictureBoxSizeMode.Zoom;   // масштабируем изображение с сохранением пропорций
+            this.Controls.Add(videoPreview);
 
             // Таймер для обновления времени записи
             timer = new System.Windows.Forms.Timer();
