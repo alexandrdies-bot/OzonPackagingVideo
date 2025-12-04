@@ -14,18 +14,20 @@ namespace OzonPackagingVideo
         private bool isRecording = false;
         private DateTime recordingStartTime;
         private string currentOrderNumber = "";
-        private int testOrderCounter = 1;
         private bool isClosing = false;
-
+        private string lastScannedCode = "";
         private ComboBox cmbCameras;
         private Button btnConnect;
         private PictureBox videoPreview;
-        private Button btnScanOrder;
-        private Button btnScanLabel;
+        //private Button btnScanOrder;
+        //private Button btnScanLabel;
         private Label lblStatus;
         private Label lblTimer;
         private System.Windows.Forms.Timer timer;
         private Panel rightPanel;
+
+        private Label lblOrderNumber;
+        private TextBox txtOrderNumber;
 
         public Form1()
         {
@@ -36,13 +38,9 @@ namespace OzonPackagingVideo
         private void SetupForm()
         {
             this.Text = "ТЕСТ: Видеофиксация упаковки";
-
-            // Окно сразу разворачиваем во весь экран
             this.WindowState = FormWindowState.Maximized;
             this.StartPosition = FormStartPosition.CenterScreen;
-
-            // Запрещаем изменять размер мышкой (по желанию)
-            this.FormBorderStyle = FormBorderStyle.Sizable; // можно FixedSingle, если хочешь жёстко фиксированный размер
+            this.FormBorderStyle = FormBorderStyle.Sizable;
 
             // Создаем папку для записей
             string recordingsPath = Path.Combine(Application.StartupPath, "TestRecordings");
@@ -56,62 +54,92 @@ namespace OzonPackagingVideo
         private void InitializeComponents()
         {
             // -----------------------
-            // ПРАВАЯ ПАНЕЛЬ ДЛЯ КНОПОК И ИНФО
+            // ПРАВАЯ ПАНЕЛЬ
             // -----------------------
             rightPanel = new Panel();
-            rightPanel.Dock = DockStyle.Right;     // панель прижимается к правому краю
-            rightPanel.Width = 300;                // ширина панели (можно поменять позже)
+            rightPanel.Dock = DockStyle.Right;
+            rightPanel.Width = 300;
             rightPanel.BackColor = Color.LightGray;
             this.Controls.Add(rightPanel);
 
-            // ComboBox для выбора камеры (внутри правой панели)
+            int margin = 10;
+            int currentY = 10;
+
+            // --- ComboBox для выбора камеры ---
             cmbCameras = new ComboBox();
-            cmbCameras.Location = new Point(10, 10);
-            cmbCameras.Size = new Size(rightPanel.Width - 20, 21);
+            cmbCameras.Location = new Point(margin, currentY);
+            cmbCameras.Size = new Size(rightPanel.Width - 2 * margin, 21);
             rightPanel.Controls.Add(cmbCameras);
 
-            // Кнопка подключения камеры
+            currentY += 30;
+
+            // --- Кнопка подключения камеры ---
             btnConnect = new Button();
-            btnConnect.Location = new Point(10, 40);
-            btnConnect.Size = new Size(rightPanel.Width - 20, 30);
+            btnConnect.Location = new Point(margin, currentY);
+            btnConnect.Size = new Size(rightPanel.Width - 2 * margin, 30);
             btnConnect.Text = "Подключить камеру";
             btnConnect.Click += BtnConnect_Click;
             rightPanel.Controls.Add(btnConnect);
 
-            // Кнопка "Сканировать заказ"
-            btnScanOrder = new Button();
-            btnScanOrder.Location = new Point(10, 90);
-            btnScanOrder.Size = new Size(rightPanel.Width - 20, 40);
-            btnScanOrder.Text = "СКАНИРОВАТЬ ЗАКАЗ";
-            btnScanOrder.BackColor = Color.LightGreen;
-            btnScanOrder.Enabled = false;
-            btnScanOrder.Click += BtnScanOrder_Click;
-            rightPanel.Controls.Add(btnScanOrder);
+            currentY += 40;
 
-            // Кнопка "Сканировать этикетку"
-            btnScanLabel = new Button();
-            btnScanLabel.Location = new Point(10, 140);
-            btnScanLabel.Size = new Size(rightPanel.Width - 20, 40);
-            btnScanLabel.Text = "СКАНИРОВАТЬ ЭТИКЕТКУ";
-            btnScanLabel.BackColor = Color.LightCoral;
-            btnScanLabel.Enabled = false;
-            btnScanLabel.Click += BtnScanLabel_Click;
-            rightPanel.Controls.Add(btnScanLabel);
+            // --- Поле для номера заказа (сканер штрих-кода) ---
+            lblOrderNumber = new Label();
+            lblOrderNumber.Text = "Номер заказа (сканер):";
+            lblOrderNumber.Location = new Point(margin, currentY);
+            lblOrderNumber.Size = new Size(rightPanel.Width - 2 * margin, 15);
+            rightPanel.Controls.Add(lblOrderNumber);
 
-            // Надпись статуса
+            currentY += 18;
+
+            txtOrderNumber = new TextBox();
+            txtOrderNumber.Location = new Point(margin, currentY);
+            txtOrderNumber.Size = new Size(rightPanel.Width - 2 * margin, 20);
+            txtOrderNumber.KeyDown += TxtOrderNumber_KeyDown;   // обработчик Enter
+            rightPanel.Controls.Add(txtOrderNumber);
+
+            currentY += 30;
+
+            // --- Кнопка "СКАНИРОВАТЬ ЗАКАЗ" ---
+            //btnScanOrder = new Button();
+            //btnScanOrder.Location = new Point(margin, currentY);
+            //btnScanOrder.Size = new Size(rightPanel.Width - 2 * margin, 40);
+            //btnScanOrder.Text = "СКАНИРОВАТЬ ЗАКАЗ";
+            //btnScanOrder.BackColor = Color.LightGreen;
+            //btnScanOrder.Enabled = false;
+            //btnScanOrder.Click += BtnScanOrder_Click;
+            //rightPanel.Controls.Add(btnScanOrder);
+
+            //currentY += 50;
+
+            // --- Кнопка "СКАНИРОВАТЬ ЭТИКЕТКУ" ---
+            //btnScanLabel = new Button();
+            //btnScanLabel.Location = new Point(margin, currentY);
+            //btnScanLabel.Size = new Size(rightPanel.Width - 2 * margin, 40);
+            //btnScanLabel.Text = "СКАНИРОВАТЬ ЭТИКЕТКУ";
+            //btnScanLabel.BackColor = Color.LightCoral;
+            //btnScanLabel.Enabled = false;
+            //btnScanLabel.Click += BtnScanLabel_Click;
+            //rightPanel.Controls.Add(btnScanLabel);
+
+            //currentY += 60;
+
+            // --- Статус ---
             lblStatus = new Label();
-            lblStatus.Location = new Point(10, 200);
-            lblStatus.Size = new Size(rightPanel.Width - 20, 40);
+            lblStatus.Location = new Point(margin, currentY);
+            lblStatus.Size = new Size(rightPanel.Width - 2 * margin, 40);
             lblStatus.Text = "Статус: Отключено";
             lblStatus.ForeColor = Color.Red;
             lblStatus.AutoSize = false;
             lblStatus.TextAlign = ContentAlignment.MiddleLeft;
             rightPanel.Controls.Add(lblStatus);
 
-            // Таймер записи
+            currentY += 50;
+
+            // --- Таймер ---
             lblTimer = new Label();
-            lblTimer.Location = new Point(10, 250);
-            lblTimer.Size = new Size(rightPanel.Width - 20, 30);
+            lblTimer.Location = new Point(margin, currentY);
+            lblTimer.Size = new Size(rightPanel.Width - 2 * margin, 30);
             lblTimer.Text = "00:00:00";
             lblTimer.Font = new Font("Arial", 14, FontStyle.Bold);
             lblTimer.ForeColor = Color.Red;
@@ -122,44 +150,47 @@ namespace OzonPackagingVideo
             // ОБЛАСТЬ ВИДЕО СЛЕВА
             // -----------------------
             videoPreview = new PictureBox();
-            videoPreview.Dock = DockStyle.Fill;                // занимает всё оставшееся пространство
+            videoPreview.Dock = DockStyle.Fill;
             videoPreview.BorderStyle = BorderStyle.FixedSingle;
             videoPreview.BackColor = Color.Black;
-            videoPreview.SizeMode = PictureBoxSizeMode.Zoom;   // масштабируем изображение с сохранением пропорций
+            videoPreview.SizeMode = PictureBoxSizeMode.Zoom;
             this.Controls.Add(videoPreview);
 
-            // Таймер для обновления времени записи
+            // Таймер
             timer = new System.Windows.Forms.Timer();
             timer.Interval = 1000;
             timer.Tick += Timer_Tick;
+
+            // Обработка закрытия формы
+            this.FormClosing += Form1_FormClosing;
         }
 
         private void FindCameras()
         {
             try
             {
-                // Ищем все подключенные камеры
                 videoDevices = new FilterInfoCollection(FilterCategory.VideoInputDevice);
+                cmbCameras.Items.Clear();
 
                 if (videoDevices.Count == 0)
                 {
-                    MessageBox.Show("Камеры не найдены! Проверьте подключение камеры.");
-                    return;
+                    cmbCameras.Items.Add("Камеры не найдены");
+                    cmbCameras.SelectedIndex = 0;
+                    btnConnect.Enabled = false;
                 }
-
-                // Добавляем камеры в список
-                foreach (FilterInfo device in videoDevices)
+                else
                 {
-                    cmbCameras.Items.Add(device.Name);
+                    foreach (FilterInfo device in videoDevices)
+                    {
+                        cmbCameras.Items.Add(device.Name);
+                    }
+                    cmbCameras.SelectedIndex = 0;
+                    btnConnect.Enabled = true;
                 }
-                cmbCameras.SelectedIndex = 0;
-
-                lblStatus.Text = $"Найдено камер: {videoDevices.Count}";
-                lblStatus.ForeColor = Color.Blue;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка поиска камер: {ex.Message}");
+                MessageBox.Show("Ошибка при поиске камер: " + ex.Message);
             }
         }
 
@@ -167,209 +198,215 @@ namespace OzonPackagingVideo
         {
             try
             {
-                // Отключаем предыдущую камеру
-                DisconnectCamera();
-
-                if (cmbCameras.SelectedIndex >= 0)
+                if (videoSource != null && videoSource.IsRunning)
                 {
-                    // Подключаем выбранную камеру
-                    videoSource = new VideoCaptureDevice(videoDevices[cmbCameras.SelectedIndex].MonikerString);
-                    videoSource.NewFrame += VideoSource_NewFrame;
-                    videoSource.Start();
+                    // Отключаем
+                    videoSource.SignalToStop();
+                    videoSource.NewFrame -= VideoSource_NewFrame;
+                    videoSource = null;
 
-                    lblStatus.Text = "Камера подключена ✓";
-                    lblStatus.ForeColor = Color.Green;
-                    btnScanOrder.Enabled = true;
+                    lblStatus.Text = "Статус: Камера отключена";
+                    lblStatus.ForeColor = Color.Red;
 
-                    MessageBox.Show("Камера успешно подключена! Теперь можно тестировать запись упаковки.",
-                                  "Готово", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    btnConnect.Text = "Подключить камеру";
+                    //btnScanOrder.Enabled = false;
+                    //btnScanLabel.Enabled = false;
+                    return;
                 }
+
+                if (videoDevices == null || videoDevices.Count == 0)
+                {
+                    MessageBox.Show("Камеры не найдены.");
+                    return;
+                }
+
+                int index = cmbCameras.SelectedIndex;
+                if (index < 0 || index >= videoDevices.Count)
+                {
+                    MessageBox.Show("Выберите камеру из списка.");
+                    return;
+                }
+
+                videoSource = new VideoCaptureDevice(videoDevices[index].MonikerString);
+                videoSource.NewFrame += VideoSource_NewFrame;
+                videoSource.Start();
+
+                lblStatus.Text = "Статус: Камера подключена";
+                lblStatus.ForeColor = Color.DarkGreen;
+
+                btnConnect.Text = "Отключить камеру";
+                //btnScanOrder.Enabled = true;
+                //btnScanLabel.Enabled = true;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка подключения камеры: {ex.Message}",
-                              "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Ошибка при подключении камеры: " + ex.Message);
             }
         }
 
         private void VideoSource_NewFrame(object sender, NewFrameEventArgs eventArgs)
         {
-            // Не обрабатываем кадры если программа закрывается
             if (isClosing) return;
 
             try
             {
-                // Показываем видео с камеры
+                Bitmap frame = (Bitmap)eventArgs.Frame.Clone();
                 if (videoPreview.InvokeRequired)
                 {
-                    if (!isClosing)
+                    videoPreview.Invoke(new Action(() =>
                     {
-                        videoPreview.Invoke(new Action<Bitmap>((bitmap) =>
-                        {
-                            if (!isClosing)
-                                videoPreview.Image = bitmap;
-                        }), (Bitmap)eventArgs.Frame.Clone());
-                    }
+                        videoPreview.Image?.Dispose();
+                        videoPreview.Image = frame;
+                    }));
                 }
                 else
                 {
-                    if (!isClosing)
-                        videoPreview.Image = (Bitmap)eventArgs.Frame.Clone();
+                    videoPreview.Image?.Dispose();
+                    videoPreview.Image = frame;
                 }
             }
             catch
             {
-                // Игнорируем ошибки отображения
+                // игнорируем возможные ошибки при отрисовке кадра
             }
         }
 
-        private void BtnScanOrder_Click(object sender, EventArgs e)
+        //private void BtnScanOrder_Click(object sender, EventArgs e)
+        //{
+        //    if (string.IsNullOrEmpty(currentOrderNumber))
+        //    {
+        //        MessageBox.Show("Номер заказа не задан. Отсканируйте штрих-код или введите номер.",
+        //                        "Ошибка",
+        //                        MessageBoxButtons.OK,
+        //                        MessageBoxIcon.Error);
+        //        txtOrderNumber.Focus();
+        //        return;
+        //    }
+
+        //    // Здесь должна быть твоя логика начала фиксации упаковки:
+        //    // создание папки заказа, сохранение START кадра и т.п.
+        //    // Пока просто показываем сообщение:
+        //    MessageBox.Show($"Начата фиксация упаковки для заказа: {currentOrderNumber}",
+        //                    "Инфо",
+        //                    MessageBoxButtons.OK,
+        //                    MessageBoxIcon.Information);
+        //}
+
+        //private void BtnScanLabel_Click(object sender, EventArgs e)
+        //{
+        //    if (string.IsNullOrEmpty(currentOrderNumber))
+        //    {
+        //        MessageBox.Show("Номер заказа не задан. Отсканируйте штрих-код или введите номер.",
+        //                        "Ошибка",
+        //                        MessageBoxButtons.OK,
+        //                        MessageBoxIcon.Error);
+        //        txtOrderNumber.Focus();
+        //        return;
+        //    }
+
+        //    // Здесь твоя логика фиксации этикетки
+        //    MessageBox.Show($"Фиксация этикетки для заказа: {currentOrderNumber}",
+        //                    "Инфо",
+        //                    MessageBoxButtons.OK,
+        //                    MessageBoxIcon.Information);
+        //}
+
+        private void TxtOrderNumber_KeyDown(object sender, KeyEventArgs e)
         {
-            // Имитация сканирования заказа - НАЧАТЬ ЗАПИСЬ
-            currentOrderNumber = $"TEST_ORDER_{testOrderCounter:000}";
-            testOrderCounter++;
-
-            isRecording = true;
-            recordingStartTime = DateTime.Now;
-
-            // Сохраняем скриншот начала упаковки
-            SaveScreenshot("START");
-
-            // Меняем интерфейс
-            btnScanOrder.Enabled = false;
-            btnScanLabel.Enabled = true;
-            lblStatus.Text = $"🔴 ЗАПИСЬ: {currentOrderNumber}";
-            lblStatus.ForeColor = Color.Red;
-            lblTimer.Visible = true;
-            timer.Start();
-
-            MessageBox.Show($"Запись начата!\nНомер заказа: {currentOrderNumber}\n\nТеперь упакуйте товар перед камерой и нажмите 'СКАНИРОВАТЬ ЭТИКЕТКУ' когда закончите.",
-                          "Запись начата", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        private void BtnScanLabel_Click(object sender, EventArgs e)
-        {
-            // Имитация сканирования этикетки - ЗАКОНЧИТЬ ЗАПИСЬ
-            if (!isRecording) return;
-
-            isRecording = false;
-            timer.Stop();
-
-            // Сохраняем скриншот конца упаковки
-            SaveScreenshot("END");
-            SaveRecordingInfo();
-
-            // Восстанавливаем интерфейс
-            btnScanOrder.Enabled = true;
-            btnScanLabel.Enabled = false;
-            lblStatus.Text = "Запись завершена ✓";
-            lblStatus.ForeColor = Color.Green;
-            lblTimer.Visible = false;
-
-            string recordingTime = (DateTime.Now - recordingStartTime).ToString(@"hh\:mm\:ss");
-
-            MessageBox.Show($"Запись завершена!\nЗаказ: {currentOrderNumber}\nДлительность: {recordingTime}\n\nФайлы сохранены в папке:\nTestRecordings\\{currentOrderNumber}",
-                          "Запись завершена", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        private void SaveScreenshot(string type)
-        {
-            try
+            if (e.KeyCode == Keys.Enter)
             {
-                if (videoPreview.Image != null && !isClosing)
-                {
-                    // Создаем папку для этого заказа
-                    string folderPath = Path.Combine(Application.StartupPath, "TestRecordings", currentOrderNumber);
-                    if (!Directory.Exists(folderPath))
-                        Directory.CreateDirectory(folderPath);
-
-                    // Сохраняем скриншот
-                    string fileName = Path.Combine(folderPath, $"{type}_{DateTime.Now:HHmmss}.jpg");
-                    videoPreview.Image.Save(fileName, System.Drawing.Imaging.ImageFormat.Jpeg);
-                }
-            }
-            catch
-            {
-                // Игнорируем ошибки сохранения
+                e.SuppressKeyPress = true; // не "пищать" и не добавлять символ
+                StartOrderFromScanner();
             }
         }
 
-        private void SaveRecordingInfo()
+        private void StartOrderFromScanner()
         {
-            try
+            string orderNumber = txtOrderNumber.Text.Trim();
+
+            if (string.IsNullOrEmpty(orderNumber))
             {
-                string folderPath = Path.Combine(Application.StartupPath, "TestRecordings", currentOrderNumber);
-                string infoFile = Path.Combine(folderPath, "!_INFO.txt");
-
-                string info = $@"ИНФОРМАЦИЯ О ЗАПИСИ УПАКОВКИ
-
-Номер заказа: {currentOrderNumber}
-Начало записи: {recordingStartTime}
-Конец записи: {DateTime.Now}
-Длительность: {DateTime.Now - recordingStartTime}
-
-Сохраненные файлы:
-- START_*.jpg - скриншот начала упаковки
-- END_*.jpg - скриншот конца упаковки
-
-Эта запись была создана тестовой программой видеофиксации упаковки.";
-
-                File.WriteAllText(infoFile, info);
+                MessageBox.Show("Номер заказа пустой. Отсканируйте штрих-код ещё раз.",
+                                "Внимание",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                return;
             }
-            catch
+
+            // Если сейчас НЕ идёт запись — начинаем новую
+            if (!isRecording)
             {
-                // Игнорируем ошибки сохранения информации
+                currentOrderNumber = orderNumber;
+
+                // TODO: здесь мы чуть позже добавим СТАРТ записи видео
+                // StartVideoRecording(currentOrderNumber);
+
+                isRecording = true;
+                recordingStartTime = DateTime.Now;
+                lblTimer.Visible = true;
+                lblTimer.Text = "00:00:00";
+                timer.Start();
+
+                lblStatus.Text = $"Статус: запись начата. Заказ: {currentOrderNumber}";
+                lblStatus.ForeColor = Color.Red;
+
+                return;
+            }
+
+            // Если запись уже идёт
+            // Если отсканирован тот же код — останавливаем запись
+            if (isRecording && orderNumber == currentOrderNumber)
+            {
+                // TODO: здесь чуть позже добавим ОСТАНОВКУ и сохранение видео
+                // StopVideoRecording();
+
+                isRecording = false;
+                timer.Stop();
+                lblTimer.Visible = false;
+
+                lblStatus.Text = $"Статус: запись остановлена. Заказ: {currentOrderNumber}";
+                lblStatus.ForeColor = Color.DarkGreen;
+
+                // Можно очистить поле после завершения
+                // txtOrderNumber.Text = "";
+                // currentOrderNumber = "";
+
+                return;
+            }
+
+            // Если запись идёт, но код ДРУГОЙ
+            if (isRecording && orderNumber != currentOrderNumber)
+            {
+                MessageBox.Show($"Сейчас ведётся запись по заказу {currentOrderNumber}.\n" +
+                                $"Сначала остановите запись, повторно отсканировав этот же штрих-код.",
+                                "Запись уже идёт",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
             }
         }
 
         private void Timer_Tick(object sender, EventArgs e)
         {
-            if (isRecording && !isClosing)
+            if (isRecording)
             {
-                // Обновляем таймер
-                TimeSpan duration = DateTime.Now - recordingStartTime;
-                lblTimer.Text = duration.ToString(@"hh\:mm\:ss");
+                TimeSpan elapsed = DateTime.Now - recordingStartTime;
+                lblTimer.Text = elapsed.ToString(@"hh\:mm\:ss");
             }
         }
 
-        private void DisconnectCamera()
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (videoSource != null)
+            isClosing = true;
+
+            if (videoSource != null && videoSource.IsRunning)
             {
                 try
                 {
-                    // Отключаем обработчик видео
+                    videoSource.SignalToStop();
                     videoSource.NewFrame -= VideoSource_NewFrame;
-
-                    // Останавливаем камеру
-                    if (videoSource.IsRunning)
-                    {
-                        videoSource.SignalToStop();
-                    }
                 }
-                catch
-                {
-                    // Игнорируем ошибки отключения
-                }
-                finally
-                {
-                    videoSource = null;
-                }
+                catch { }
             }
-        }
-
-        protected override void OnFormClosing(FormClosingEventArgs e)
-        {
-            // Устанавливаем флаг что программа закрывается
-            isClosing = true;
-
-            // Останавливаем таймер
-            timer?.Stop();
-
-            // Отключаем камеру
-            DisconnectCamera();
-
-            base.OnFormClosing(e);
         }
     }
 }
